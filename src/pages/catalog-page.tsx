@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
   Select,
   SelectContent,
@@ -166,6 +167,59 @@ export function CatalogPage() {
         toast.error(err instanceof Error ? err.message : "Creation de produit impossible.")
       }
     })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="grid flex-1 gap-6 px-4 py-4 lg:px-6">
+        <Card className="border-none bg-linear-to-br from-primary/10 via-background to-background shadow-sm">
+          <CardHeader className="gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-6 w-28 rounded-full" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+              <Skeleton className="h-6 w-36 rounded-full" />
+            </div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="grid gap-3">
+                <Skeleton className="h-8 w-80 max-w-full" />
+                <Skeleton className="h-4 w-[32rem] max-w-full" />
+                <Skeleton className="h-4 w-[26rem] max-w-full" />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Skeleton className="h-10 w-44" />
+                <Skeleton className="h-10 w-36" />
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-44" />
+              <Skeleton className="h-4 w-72" />
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <CatalogCardSkeleton key={`category-skeleton-${index}`} />
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-6 w-36" />
+              <Skeleton className="h-4 w-72" />
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <CatalogCardSkeleton key={`product-skeleton-${index}`} />
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -837,5 +891,26 @@ function ConfirmDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function CatalogCardSkeleton() {
+  return (
+    <div className="rounded-2xl border p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="grid flex-1 gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-5 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-64 max-w-full" />
+        </div>
+        <div className="flex items-center gap-2">
+          <Skeleton className="size-9 rounded-md" />
+          <Skeleton className="size-9 rounded-md" />
+        </div>
+      </div>
+    </div>
   )
 }

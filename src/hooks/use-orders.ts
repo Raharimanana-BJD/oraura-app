@@ -1,46 +1,73 @@
 import { useEffect, useMemo, useState } from "react"
+import { listen } from "@tauri-apps/api/event"
+import { invoke } from "@tauri-apps/api/core"
 
 import {
   ORDERS_UPDATED_EVENT,
-  createStoredOrder,
-  readStoredOrders,
+  type CreateOrderInput,
   type LocalOrder,
   type PaymentMethod,
-  updateStoredOrder,
-} from "@/lib/order-store"
+} from "@/lib/orders"
 
 export function useOrders() {
-  const [orders, setOrders] = useState<LocalOrder[]>(readStoredOrders)
+  const [orders, setOrders] = useState<LocalOrder[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  async function refreshOrders() {
+    try {
+      const nextOrders = await invoke<LocalOrder[]>("list_orders")
+      setOrders(nextOrders)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Chargement des commandes impossible.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const syncOrders = () => {
-      setOrders(readStoredOrders())
-    }
+    void refreshOrders()
 
-    window.addEventListener("storage", syncOrders)
-    window.addEventListener(ORDERS_UPDATED_EVENT, syncOrders)
+    let mounted = true
+    let unlisten: (() => void) | undefined
+
+    void listen(ORDERS_UPDATED_EVENT, () => {
+      if (mounted) {
+        void refreshOrders()
+      }
+    }).then((dispose) => {
+      unlisten = dispose
+    })
 
     return () => {
-      window.removeEventListener("storage", syncOrders)
-      window.removeEventListener(ORDERS_UPDATED_EVENT, syncOrders)
+      mounted = false
+      unlisten?.()
     }
   }, [])
 
   const actions = useMemo(
     () => ({
-      createOrder: createStoredOrder,
-      markReady: (orderId: string) => {
-        updateStoredOrder(orderId, (order) => ({
-          ...order,
-          kitchenStatus: "READY",
-        }))
+      async refresh() {
+        await refreshOrders()
       },
-      completePayment: (orderId: string, paymentMethod: PaymentMethod) => {
-        updateStoredOrder(orderId, (order) => ({
-          ...order,
-          paymentStatus: "COMPLETED",
-          paymentMethod,
-        }))
+      async createOrder(input: CreateOrderInput) {
+        const created = await invoke<LocalOrder>("create_order", { input })
+        await refreshOrders()
+        return created
+      },
+      async markReady(orderId: string) {
+        const updated = await invoke<LocalOrder>("mark_order_ready", { orderId })
+        await refreshOrders()
+        return updated
+      },
+      async completePayment(orderId: string, paymentMethod: PaymentMethod) {
+        const updated = await invoke<LocalOrder>("complete_order_payment", {
+          orderId,
+          input: { paymentMethod },
+        })
+        await refreshOrders()
+        return updated
       },
     }),
     []
@@ -48,6 +75,8 @@ export function useOrders() {
 
   return {
     orders,
+    isLoading,
+    error,
     ...actions,
   }
 }

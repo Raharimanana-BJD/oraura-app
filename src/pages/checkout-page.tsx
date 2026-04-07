@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 import { useOrders } from "@/hooks/use-orders";
 import { useAppSettings } from "@/hooks/use-app-settings";
-import type { LocalOrder, PaymentMethod } from "@/lib/order-store";
+import type { LocalOrder, PaymentMethod } from "@/lib/orders";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,7 +78,7 @@ function buildReceiptTicket(
 
 export function CheckoutPage() {
   const settings = useAppSettings();
-  const { orders, completePayment } = useOrders();
+  const { orders, completePayment, isLoading, error } = useOrders();
 
   const pendingOrders = orders.filter(
     (order) => order.paymentStatus === "PENDING",
@@ -87,8 +87,28 @@ export function CheckoutPage() {
     (order) => order.paymentStatus === "COMPLETED",
   );
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
+          Chargement des commandes caisse...
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="max-w-xl rounded-2xl border border-destructive/40 bg-destructive/5 px-6 py-8 text-sm text-destructive">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
   async function handleComplete(order: LocalOrder, paymentMethod: PaymentMethod) {
-    completePayment(order.id, paymentMethod);
+    await completePayment(order.id, paymentMethod);
 
     if (settings.printCustomerReceipt && settings.cashierPrinterEnabled) {
       const ticket = buildReceiptTicket(

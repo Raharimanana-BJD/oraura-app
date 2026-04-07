@@ -1,5 +1,8 @@
+mod app_settings;
 mod catalog;
 mod db;
+mod ids;
+mod orders;
 
 use std::{
     io::Write,
@@ -57,7 +60,11 @@ fn connect_to_printer(printer_ip: &str, printer_port: u16) -> Result<TcpStream, 
 }
 
 #[tauri::command]
-fn print_to_kitchen(printer_ip: &str, printer_port: Option<u16>, content: &str) -> Result<(), String> {
+fn print_to_kitchen(
+    printer_ip: &str,
+    printer_port: Option<u16>,
+    content: &str,
+) -> Result<(), String> {
     if printer_ip.trim().is_empty() {
         return Err("L'adresse IP de l'imprimante est requise.".to_string());
     }
@@ -98,13 +105,20 @@ pub fn run() {
             print_to_kitchen,
             db::initialize_database,
             db::database_status,
+            app_settings::get_app_settings,
+            app_settings::save_app_settings,
+            app_settings::reset_app_settings,
             catalog::list_catalog,
             catalog::create_category,
             catalog::update_category,
             catalog::delete_category,
             catalog::create_product,
             catalog::update_product,
-            catalog::delete_product
+            catalog::delete_product,
+            orders::list_orders,
+            orders::create_order,
+            orders::mark_order_ready,
+            orders::complete_order_payment
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

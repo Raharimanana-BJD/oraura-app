@@ -1,8 +1,4 @@
-use std::{
-    env,
-    sync::Mutex,
-    time::Duration,
-};
+use std::{env, sync::Mutex, time::Duration};
 
 use serde::Serialize;
 use sqlx::{postgres::PgPoolOptions, PgPool};
@@ -38,11 +34,17 @@ impl DatabaseState {
 
     fn set_pool(&self, pool: PgPool) {
         *self.pool.lock().expect("database state lock poisoned") = Some(pool);
-        *self.last_error.lock().expect("database state lock poisoned") = None;
+        *self
+            .last_error
+            .lock()
+            .expect("database state lock poisoned") = None;
     }
 
     fn set_error(&self, message: String) {
-        *self.last_error.lock().expect("database state lock poisoned") = Some(message);
+        *self
+            .last_error
+            .lock()
+            .expect("database state lock poisoned") = Some(message);
     }
 
     fn last_error(&self) -> Option<String> {
@@ -68,8 +70,9 @@ impl DatabaseState {
 async fn connect_pool() -> Result<PgPool, String> {
     dotenvy::dotenv().ok();
 
-    let database_url = env::var("DATABASE_URL")
-        .map_err(|_| "DATABASE_URL est absente. Configure le fichier .env avant de continuer.".to_string())?;
+    let database_url = env::var("DATABASE_URL").map_err(|_| {
+        "DATABASE_URL est absente. Configure le fichier .env avant de continuer.".to_string()
+    })?;
 
     let pool = PgPoolOptions::new()
         .max_connections(DATABASE_MAX_CONNECTIONS)

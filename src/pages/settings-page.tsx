@@ -18,9 +18,10 @@ import {
   type AppSettings,
   appSettingsSchema,
   defaultAppSettings,
+  fetchAppSettings,
   readStoredAppSettings,
-  resetStoredAppSettings,
-  writeStoredAppSettings,
+  resetAppSettings,
+  saveAppSettings,
 } from "@/lib/app-settings"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -50,6 +51,8 @@ export function SettingsPage() {
   const [saved, setSaved] = useState<AppSettings>(defaultAppSettings)
   const [errors, setErrors] = useState<SettingsErrors>({})
   const [isHydrated, setIsHydrated] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<"syncing" | "synced" | "cache" | "error">("syncing")
+  const [syncMessage, setSyncMessage] = useState("Synchronisation PostgreSQL en cours.")
   const [isSaving, startSaving] = useTransition()
   const [isPrinting, startPrinting] = useTransition()
 
@@ -58,6 +61,36 @@ export function SettingsPage() {
     setDraft(stored)
     setSaved(stored)
     setIsHydrated(true)
+
+    let cancelled = false
+
+    void fetchAppSettings()
+      .then((remoteSettings) => {
+        if (cancelled) {
+          return
+        }
+
+        setDraft(remoteSettings)
+        setSaved(remoteSettings)
+        setSyncStatus("synced")
+        setSyncMessage("Configuration chargee depuis PostgreSQL.")
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Synchronisation PostgreSQL impossible."
+        setSyncStatus("cache")
+        setSyncMessage(`${message} Affichage du dernier cache local disponible.`)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const isDirty = useMemo(
@@ -97,26 +130,56 @@ export function SettingsPage() {
 
   function handleSave() {
     startSaving(() => {
-      const validated = validateSettings(draft)
+      void (async () => {
+        const validated = validateSettings(draft)
 
-      if (!validated) {
-        toast.error("La configuration contient des erreurs.")
-        return
-      }
+        if (!validated) {
+          toast.error("La configuration contient des erreurs.")
+          return
+        }
 
-      writeStoredAppSettings(validated)
-      setDraft(validated)
-      setSaved(validated)
-      toast.success("Parametres sauvegardes.")
+        try {
+          const savedSettings = await saveAppSettings(validated)
+          setDraft(savedSettings)
+          setSaved(savedSettings)
+          setSyncStatus("synced")
+          setSyncMessage("Configuration sauvegardee dans PostgreSQL.")
+          toast.success("Parametres sauvegardes.")
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Sauvegarde des parametres impossible."
+          setSyncStatus("error")
+          setSyncMessage(message)
+          toast.error(message)
+        }
+      })()
     })
   }
 
   function handleReset() {
-    resetStoredAppSettings()
-    setDraft(defaultAppSettings)
-    setSaved(defaultAppSettings)
-    setErrors({})
-    toast.success("Configuration reinitialisee.")
+    startSaving(() => {
+      void (async () => {
+        try {
+          const resetSettings = await resetAppSettings()
+          setDraft(resetSettings)
+          setSaved(resetSettings)
+          setErrors({})
+          setSyncStatus("synced")
+          setSyncMessage("Configuration reinitialisee depuis PostgreSQL.")
+          toast.success("Configuration reinitialisee.")
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Reinitialisation des parametres impossible."
+          setSyncStatus("error")
+          setSyncMessage(message)
+          toast.error(message)
+        }
+      })()
+    })
   }
 
   function handleTestPrint(target: "kitchen" | "cashier") {
@@ -188,7 +251,15 @@ export function SettingsPage() {
             <Badge variant={isDirty ? "default" : "outline"}>
               {isDirty ? "Brouillon non sauvegarde" : "Configuration a jour"}
             </Badge>
-            <Badge variant="outline">Persistante sur cet appareil</Badge>
+            <Badge variant={syncStatus === "synced" ? "outline" : "secondary"}>
+              {syncStatus === "syncing"
+                ? "Synchronisation..."
+                : syncStatus === "synced"
+                  ? "Source: PostgreSQL"
+                  : syncStatus === "cache"
+                    ? "Mode degrade: cache local"
+                    : "Erreur de synchronisation"}
+            </Badge>
             <Badge variant="outline">Imprimante testable en direct</Badge>
           </div>
           <div className="flex flex-col gap-2">
@@ -220,7 +291,7 @@ export function SettingsPage() {
               {isPrinting ? <Loader2Icon className="animate-spin" /> : <ReceiptTextIcon />}
               Tester la caisse
             </Button>
-            <Button variant="outline" onClick={handleReset}>
+            <Button variant="outline" onClick={handleReset} disabled={isSaving}>
               <RotateCcwIcon />
               Reinitialiser
             </Button>
@@ -556,17 +627,25 @@ export function SettingsPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Volume2Icon className="size-4" />
-                Etat de livraison
+                Etat de synchronisation
               </CardTitle>
               <CardDescription>
-                Ce bloc t&apos;aide a verifier ce qui est pret des maintenant.
+                Ce bloc confirme si la page manipule bien la configuration persistante de l&apos;application.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3">
               <StatusLine
-                label="Persistance locale"
-                value="Active"
-                hint="La configuration est stockee sur cet appareil."
+                label="Persistance applicative"
+                value={
+                  syncStatus === "synced"
+                    ? "PostgreSQL active"
+                    : syncStatus === "syncing"
+                      ? "Synchronisation..."
+                      : syncStatus === "cache"
+                        ? "Cache local uniquement"
+                        : "Erreur de synchronisation"
+                }
+                hint={syncMessage}
               />
               <StatusLine
                 label="Connexion cuisine"

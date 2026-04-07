@@ -18,6 +18,23 @@ const emptyCatalog: CatalogState = {
   products: [],
 }
 
+function getErrorMessage(err: unknown) {
+  if (typeof err === "string") {
+    return err
+  }
+
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "message" in err &&
+    typeof err.message === "string"
+  ) {
+    return err.message
+  }
+
+  return "Chargement du catalogue impossible."
+}
+
 export function useCatalog() {
   const [catalog, setCatalog] = useState<CatalogState>(emptyCatalog)
   const [isLoading, setIsLoading] = useState(true)
@@ -29,7 +46,7 @@ export function useCatalog() {
       setCatalog(nextCatalog)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Chargement du catalogue impossible.")
+      setError(getErrorMessage(err))
     } finally {
       setIsLoading(false)
     }

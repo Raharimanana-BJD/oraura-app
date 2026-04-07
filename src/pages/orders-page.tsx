@@ -16,7 +16,7 @@ import { useCatalog } from "@/hooks/use-catalog";
 import { useOrders } from "@/hooks/use-orders";
 import type { AppSettings } from "@/lib/app-settings";
 import type { CatalogProduct } from "@/lib/catalog";
-import type { OrderMode } from "@/lib/order-store";
+import type { LocalOrder } from "@/lib/orders";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,20 +51,21 @@ function formatCurrency(value: number, currencySymbol: string) {
 }
 
 function buildKitchenTicket(
-  orderNumber: string,
-  orderMode: string,
-  notes: string,
-  cart: CartItem[],
+  order: LocalOrder,
 ) {
   const lines = [
-    `Commande ${orderNumber}`,
-    `Mode: ${orderMode}`,
+    `Commande ${order.orderNumber}`,
+    `Mode: ${order.orderMode}`,
     "------------------------------",
-    ...cart.map((item) => `${item.quantity} x ${item.name}`),
+    ...order.lines.map((line) => `${line.quantity} x ${line.name}`),
   ];
 
-  if (notes.trim()) {
-    lines.push("------------------------------", `Notes: ${notes.trim()}`);
+  if (order.customerName.trim()) {
+    lines.push("------------------------------", `Client: ${order.customerName.trim()}`);
+  }
+
+  if (order.notes.trim()) {
+    lines.push("------------------------------", `Notes: ${order.notes.trim()}`);
   }
 
   lines.push("------------------------------", "Preparation en cours");
@@ -74,7 +75,12 @@ function buildKitchenTicket(
 
 export function OrdersPage() {
   const settings = useAppSettings();
-  const { categories: catalogCategories, products } = useCatalog();
+  const {
+    categories: catalogCategories,
+    products,
+    isLoading: isCatalogLoading,
+    error: catalogError,
+  } = useCatalog();
   const { createOrder } = useOrders();
   const [activeCategory, setActiveCategory] = useState("Tous");
   const [orderMode, setOrderMode] = useState(settings.defaultOrderMode);
@@ -131,6 +137,26 @@ export function OrdersPage() {
     [cart],
   );
 
+  if (isCatalogLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
+          Chargement du catalogue produits...
+        </div>
+      </div>
+    );
+  }
+
+  if (catalogError) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="max-w-xl rounded-2xl border border-destructive/40 bg-destructive/5 px-6 py-8 text-sm text-destructive">
+          {catalogError}
+        </div>
+      </div>
+    );
+  }
+
   function addToCart(product: PosProduct) {
     setCart((current) => {
       const existing = current.find((item) => item.id === product.id);
@@ -170,41 +196,45 @@ export function OrdersPage() {
     }
 
     const orderNumber = `${settings.orderPrefix}-${Date.now().toString().slice(-4)}`;
-    const ticket = buildKitchenTicket(orderNumber, orderMode, notes, cart);
 
-    const createdOrder = createOrder({
+    const createdOrder = await createOrder({
       orderNumber,
       customerName: customerName.trim(),
-      orderMode: orderMode as OrderMode,
+      orderMode,
       notes: notes.trim(),
       lines: cart.map((item) => ({
         productId: item.id,
-        name: item.name,
-        category: item.category,
-        unitPrice: item.price,
         quantity: item.quantity,
       })),
-      totalAmount: subtotal,
-      totalItems,
-      kitchenStatus: "PREPARING",
-      paymentStatus: "PENDING",
-      paymentMethod: null,
     });
 
+    let printErrorMessage: string | null = null;
     if (settings.kitchenPrinterEnabled && settings.autoPrintKitchen) {
-      await invoke("print_to_kitchen", {
-        printerIp: settings.kitchenPrinterIp,
-        printerPort: settings.kitchenPrinterPort,
-        content: customerName.trim()
-          ? `${ticket}\nClient: ${customerName.trim()}`
-          : ticket,
-      });
+      try {
+        await invoke("print_to_kitchen", {
+          printerIp: settings.kitchenPrinterIp,
+          printerPort: settings.kitchenPrinterPort,
+          content: buildKitchenTicket(createdOrder),
+        });
+      } catch (error) {
+        printErrorMessage =
+          error instanceof Error
+            ? error.message
+            : "Echec d'impression du ticket cuisine.";
+      }
     }
 
     setCart([]);
     setCustomerName("");
     setNotes("");
     setOrderMode(settings.defaultOrderMode);
+
+    if (printErrorMessage) {
+      toast.error(
+        `Commande ${createdOrder.orderNumber} enregistree, mais l'impression cuisine a echoue: ${printErrorMessage}`,
+      );
+      return;
+    }
 
     toast.success(
       settings.autoPrintKitchen && settings.kitchenPrinterEnabled

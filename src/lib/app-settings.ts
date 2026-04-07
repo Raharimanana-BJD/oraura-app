@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core"
 import { z } from "zod"
 
 export const APP_SETTINGS_UPDATED_EVENT = "oraura:app-settings-updated"
@@ -101,6 +102,23 @@ export const defaultAppSettings: AppSettings = {
 
 const APP_SETTINGS_STORAGE_KEY = "oraura.app.settings"
 
+function notifyAppSettingsUpdated() {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.dispatchEvent(new CustomEvent(APP_SETTINGS_UPDATED_EVENT))
+}
+
+function cacheAppSettings(settings: AppSettings) {
+  if (typeof window === "undefined") {
+    return
+  }
+
+  window.localStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+  notifyAppSettingsUpdated()
+}
+
 export function readStoredAppSettings(): AppSettings {
   if (typeof window === "undefined") {
     return defaultAppSettings
@@ -123,13 +141,55 @@ export function readStoredAppSettings(): AppSettings {
   }
 }
 
-export function writeStoredAppSettings(settings: AppSettings) {
-  if (typeof window === "undefined") {
-    return
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === "string") {
+    return error
   }
 
-  window.localStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(settings))
-  window.dispatchEvent(new CustomEvent(APP_SETTINGS_UPDATED_EVENT))
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message
+  }
+
+  return fallback
+}
+
+export async function fetchAppSettings() {
+  try {
+    const settings = appSettingsSchema.parse(await invoke<AppSettings>("get_app_settings"))
+    cacheAppSettings(settings)
+    return settings
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Chargement des parametres impossible."))
+  }
+}
+
+export async function saveAppSettings(settings: AppSettings) {
+  const validated = appSettingsSchema.parse(settings)
+
+  try {
+    const saved = appSettingsSchema.parse(
+      await invoke<AppSettings>("save_app_settings", { input: validated })
+    )
+    cacheAppSettings(saved)
+    return saved
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Sauvegarde des parametres impossible."))
+  }
+}
+
+export async function resetAppSettings() {
+  try {
+    const reset = appSettingsSchema.parse(await invoke<AppSettings>("reset_app_settings"))
+    cacheAppSettings(reset)
+    return reset
+  } catch (error) {
+    throw new Error(getErrorMessage(error, "Reinitialisation des parametres impossible."))
+  }
 }
 
 export function resetStoredAppSettings() {
@@ -138,5 +198,5 @@ export function resetStoredAppSettings() {
   }
 
   window.localStorage.removeItem(APP_SETTINGS_STORAGE_KEY)
-  window.dispatchEvent(new CustomEvent(APP_SETTINGS_UPDATED_EVENT))
+  notifyAppSettingsUpdated()
 }
