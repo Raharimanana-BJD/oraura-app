@@ -11,7 +11,7 @@ Développement d'une application de bureau native pour la prise de commande en f
 * **Base de Données :** PostgreSQL avec Prisma ORM.
 * **Stylisation & UI :** Tailwind CSS + shadcn/ui (Composants accessibles et optimisés tactile).
 * **Gestion de Paquets :** pnpm.
-* **OS Cible :** Windows 11 & Ubuntu.
+* **OS Cible :** Windows 11 & distribution lunix.
 
 ## 3. Architecture & Flux de Données
 1.  **Saisie :** Interface tactile optimisée (grille de produits, catégories).
