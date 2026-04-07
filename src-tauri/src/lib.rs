@@ -1,4 +1,5 @@
 mod app_settings;
+mod app_setup;
 mod catalog;
 mod db;
 mod ids;
@@ -108,6 +109,8 @@ pub fn run() {
             app_settings::get_app_settings,
             app_settings::save_app_settings,
             app_settings::reset_app_settings,
+            app_setup::get_app_setup_state,
+            app_setup::complete_app_setup,
             catalog::list_catalog,
             catalog::create_category,
             catalog::update_category,

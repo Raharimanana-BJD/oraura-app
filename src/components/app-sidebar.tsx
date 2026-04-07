@@ -1,6 +1,7 @@
 import * as React from "react"
 import { NavLink, useLocation } from "react-router-dom"
 
+import type { AppSetupState } from "@/lib/app-setup"
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
@@ -27,12 +28,20 @@ import {
   Settings2Icon,
 } from "lucide-react"
 
+function roleLabel(role: AppSetupState["operatorRole"]) {
+  switch (role) {
+    case "manager":
+      return "Manager"
+    case "cashier":
+      return "Caissier"
+    case "server":
+      return "Serveur"
+    case "kitchen":
+      return "Cuisine"
+  }
+}
+
 const data = {
-  user: {
-    name: "Aina Rakoto",
-    email: "manager@oraura.local",
-    avatar: "",
-  },
   navMain: [
     {
       title: "Pilotage",
@@ -91,8 +100,18 @@ const data = {
   ],
 }
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({
+  setupState,
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  setupState: AppSetupState
+}) {
   const location = useLocation()
+  const user = {
+    name: setupState.operatorName,
+    subtitle: `${roleLabel(setupState.operatorRole)} · ${setupState.stationName}`,
+    avatar: "",
+  }
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -118,7 +137,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={user} />
       </SidebarFooter>
     </Sidebar>
   )
