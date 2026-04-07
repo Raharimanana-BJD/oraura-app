@@ -9,8 +9,13 @@ import { SectionCards } from "@/components/section-cards";
 
 export function DashboardPage() {
   const settings = useAppSettings()
-  const { categories, products } = useCatalog()
-  const { orders } = useOrders()
+  const {
+    categories,
+    products,
+    isLoading: isCatalogLoading,
+    error: catalogError,
+  } = useCatalog()
+  const { orders, isLoading: isOrdersLoading, error: ordersError } = useOrders()
 
   const todayKey = new Date().toISOString().slice(0, 10)
 
@@ -91,6 +96,29 @@ export function DashboardPage() {
       })),
     [orders, settings.currencySymbol]
   )
+
+  const isLoading = isCatalogLoading || isOrdersLoading
+  const error = catalogError ?? ordersError
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
+          Chargement du pilotage en temps reel...
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="max-w-xl rounded-2xl border border-destructive/40 bg-destructive/5 px-6 py-8 text-sm text-destructive">
+          {error}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-4 bg-linear-to-b from-background via-background to-muted/20 py-4 md:gap-6 md:py-6">

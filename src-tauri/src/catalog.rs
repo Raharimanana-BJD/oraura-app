@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool};
 use tauri::{AppHandle, Emitter, State};
 
-use crate::db::DatabaseState;
+use crate::{db::DatabaseState, ids::generate_id};
 
 const CATALOG_UPDATED_EVENT: &str = "oraura://catalog-updated";
 
@@ -66,15 +66,6 @@ pub struct UpdateProductInput {
     pub is_active: bool,
 }
 
-fn build_id(prefix: &str) -> String {
-    let millis = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("system time before unix epoch")
-        .as_millis();
-
-    format!("{prefix}-{millis}")
-}
-
 async fn seed_catalog_if_empty(pool: &PgPool) -> Result<(), String> {
     let category_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM categories")
         .fetch_one(pool)
@@ -108,7 +99,12 @@ async fn seed_catalog_if_empty(pool: &PgPool) -> Result<(), String> {
 
     let seed_products = [
         ("burger-classic", "Burger Classic", "cat-burgers", 12000.0),
-        ("burger-double", "Double Burger Bacon", "cat-burgers", 19500.0),
+        (
+            "burger-double",
+            "Double Burger Bacon",
+            "cat-burgers",
+            19500.0,
+        ),
         ("wrap-crispy", "Wrap poulet crispy", "cat-wraps", 14500.0),
         ("tacos-xl", "Menu Tacos XL", "cat-wraps", 22000.0),
         ("fries-large", "Frites XL", "cat-sides", 6000.0),
@@ -212,7 +208,7 @@ pub async fn create_category(
     let pool = state.ensure_pool().await?;
     let name = validate_category_name(&input.name)?;
     let description = input.description.trim().to_string();
-    let id = build_id("cat");
+    let id = generate_id("cat");
 
     let created = sqlx::query_as::<_, CatalogCategory>(
         "INSERT INTO categories (id, name, description, is_active)
@@ -309,7 +305,7 @@ pub async fn create_product(
     let name = validate_product_name(&input.name)?;
     let category_id = validate_category_id(&input.category_id)?;
     let price = validate_price(input.price)?;
-    let id = build_id("prod");
+    let id = generate_id("prod");
 
     let created = sqlx::query_as::<_, CatalogProduct>(
         "INSERT INTO products (id, name, category_id, price, is_active)

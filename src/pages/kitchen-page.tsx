@@ -1,4 +1,5 @@
 import type { ReactNode } from "react"
+import * as React from "react"
 import { Clock3Icon, CookingPotIcon, PartyPopperIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -18,7 +19,7 @@ function formatElapsed(createdAt: string) {
 
 export function KitchenPage() {
   const settings = useAppSettings()
-  const { orders, markReady } = useOrders()
+  const { orders, markReady, isLoading, error } = useOrders()
 
   const preparingOrders = orders.filter(
     (order) => order.kitchenStatus === "PREPARING" && order.paymentStatus === "PENDING"
@@ -26,6 +27,26 @@ export function KitchenPage() {
   const readyOrders = orders.filter(
     (order) => order.kitchenStatus === "READY" && order.paymentStatus === "PENDING"
   )
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
+          Chargement des tickets cuisine...
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
+        <div className="max-w-xl rounded-2xl border border-destructive/40 bg-destructive/5 px-6 py-8 text-sm text-destructive">
+          {error}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="grid flex-1 gap-6 px-4 py-4 lg:grid-cols-2 lg:px-6">
@@ -46,14 +67,11 @@ export function KitchenPage() {
               notes={order.notes}
               items={order.lines.map((line) => `${line.quantity} x ${line.name}`)}
               action={
-                <Button
-                  onClick={() => {
-                    markReady(order.id)
-                    toast.success(`Commande ${order.orderNumber} marquee prete.`)
-                  }}
-                >
-                  Marquer prete
-                </Button>
+                <ReadyButton
+                  orderId={order.id}
+                  orderNumber={order.orderNumber}
+                  onMarkReady={markReady}
+                />
               }
             />
           ))
@@ -90,6 +108,40 @@ export function KitchenPage() {
         )}
       </StatusColumn>
     </div>
+  )
+}
+
+function ReadyButton({
+  orderId,
+  orderNumber,
+  onMarkReady,
+}: {
+  orderId: string
+  orderNumber: string
+  onMarkReady: (orderId: string) => Promise<unknown>
+}) {
+  const [isPending, startTransition] = React.useTransition()
+
+  return (
+    <Button
+      onClick={() => {
+        startTransition(async () => {
+          try {
+            await onMarkReady(orderId)
+            toast.success(`Commande ${orderNumber} marquee prete.`)
+          } catch (error) {
+            toast.error(
+              error instanceof Error
+                ? error.message
+                : "Mise a jour du statut cuisine impossible."
+            )
+          }
+        })
+      }}
+      disabled={isPending}
+    >
+      Marquer prete
+    </Button>
   )
 }
 
