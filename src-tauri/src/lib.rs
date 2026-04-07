@@ -1,10 +1,13 @@
+mod catalog;
+mod db;
+
 use std::{
     io::Write,
     net::{SocketAddr, TcpStream},
     time::Duration,
 };
 
-const PRINTER_PORT: u16 = 9100;
+const DEFAULT_PRINTER_PORT: u16 = 9100;
 const CONNECT_TIMEOUT_MS: u64 = 3_000;
 const WRITE_TIMEOUT_MS: u64 = 3_000;
 const ESC: u8 = 0x1B;
@@ -32,8 +35,8 @@ fn build_kitchen_ticket_payload(content: &str) -> Vec<u8> {
     payload
 }
 
-fn connect_to_printer(printer_ip: &str) -> Result<TcpStream, String> {
-    let address = format!("{printer_ip}:{PRINTER_PORT}");
+fn connect_to_printer(printer_ip: &str, printer_port: u16) -> Result<TcpStream, String> {
+    let address = format!("{printer_ip}:{printer_port}");
     let socket_addr: SocketAddr = address
         .parse()
         .map_err(|_| format!("Adresse IP imprimante invalide: {printer_ip}"))?;
@@ -42,7 +45,7 @@ fn connect_to_printer(printer_ip: &str) -> Result<TcpStream, String> {
         TcpStream::connect_timeout(&socket_addr, Duration::from_millis(CONNECT_TIMEOUT_MS))
             .map_err(|error| {
                 format!(
-            "Impossible de se connecter a l'imprimante {printer_ip}:{PRINTER_PORT}: {error}"
+            "Impossible de se connecter a l'imprimante {printer_ip}:{printer_port}: {error}"
         )
             })?;
 
@@ -54,7 +57,7 @@ fn connect_to_printer(printer_ip: &str) -> Result<TcpStream, String> {
 }
 
 #[tauri::command]
-fn print_to_kitchen(printer_ip: &str, content: &str) -> Result<(), String> {
+fn print_to_kitchen(printer_ip: &str, printer_port: Option<u16>, content: &str) -> Result<(), String> {
     if printer_ip.trim().is_empty() {
         return Err("L'adresse IP de l'imprimante est requise.".to_string());
     }
@@ -63,8 +66,14 @@ fn print_to_kitchen(printer_ip: &str, content: &str) -> Result<(), String> {
         return Err("Le ticket a imprimer est vide.".to_string());
     }
 
+    let port = printer_port.unwrap_or(DEFAULT_PRINTER_PORT);
+
+    if port == 0 {
+        return Err("Le port de l'imprimante doit etre superieur a 0.".to_string());
+    }
+
     let payload = build_kitchen_ticket_payload(content);
-    let mut stream = connect_to_printer(printer_ip.trim())?;
+    let mut stream = connect_to_printer(printer_ip.trim(), port)?;
 
     stream
         .write_all(&payload)
@@ -79,9 +88,24 @@ fn print_to_kitchen(printer_ip: &str, content: &str) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let database_state = db::DatabaseState::new();
+    tauri::async_runtime::block_on(db::warm_up_database(&database_state));
+
     tauri::Builder::default()
+        .manage(database_state)
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![print_to_kitchen])
+        .invoke_handler(tauri::generate_handler![
+            print_to_kitchen,
+            db::initialize_database,
+            db::database_status,
+            catalog::list_catalog,
+            catalog::create_category,
+            catalog::update_category,
+            catalog::delete_category,
+            catalog::create_product,
+            catalog::update_product,
+            catalog::delete_product
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

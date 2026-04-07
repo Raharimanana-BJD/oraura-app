@@ -96,7 +96,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export const schema = z.object({
-  id: z.number(),
+  id: z.string(),
   header: z.string(),
   type: z.string(),
   status: z.string(),
@@ -105,7 +105,7 @@ export const schema = z.object({
   reviewer: z.string(),
 })
 
-function DragHandle({ id }: { id: number }) {
+function DragHandle({ id }: { id: string }) {
   const { attributes, listeners } = useSortable({
     id,
   })
@@ -323,6 +323,10 @@ export function DataTable({
     [data]
   )
 
+  React.useEffect(() => {
+    setData(initialData)
+  }, [initialData])
+
   const table = useReactTable({
     data,
     columns,
@@ -333,7 +337,7 @@ export function DataTable({
       columnFilters,
       pagination,
     },
-    getRowId: (row) => row.id.toString(),
+    getRowId: (row) => row.id,
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,

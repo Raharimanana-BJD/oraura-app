@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
+import * as React from "react";
+import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Card,
   CardAction,
@@ -11,98 +11,84 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
+} from "@/components/ui/card";
 import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
   type ChartConfig,
-} from "@/components/ui/chart"
+} from "@/components/ui/chart";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@/components/ui/toggle-group"
+} from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-export const description = "An interactive area chart"
+export const description = "An interactive area chart";
 
-const chartData = [
-  { date: "2026-03-16", desktop: 42, mobile: 28 },
-  { date: "2026-03-17", desktop: 48, mobile: 34 },
-  { date: "2026-03-18", desktop: 45, mobile: 31 },
-  { date: "2026-03-19", desktop: 56, mobile: 37 },
-  { date: "2026-03-20", desktop: 63, mobile: 44 },
-  { date: "2026-03-21", desktop: 59, mobile: 40 },
-  { date: "2026-03-22", desktop: 61, mobile: 39 },
-  { date: "2026-03-23", desktop: 67, mobile: 46 },
-  { date: "2026-03-24", desktop: 72, mobile: 48 },
-  { date: "2026-03-25", desktop: 69, mobile: 45 },
-  { date: "2026-03-26", desktop: 74, mobile: 51 },
-  { date: "2026-03-27", desktop: 78, mobile: 54 },
-  { date: "2026-03-28", desktop: 82, mobile: 57 },
-  { date: "2026-03-29", desktop: 76, mobile: 50 },
-  { date: "2026-03-30", desktop: 81, mobile: 53 },
-  { date: "2026-03-31", desktop: 84, mobile: 56 },
-  { date: "2026-04-01", desktop: 88, mobile: 62 },
-  { date: "2026-04-02", desktop: 91, mobile: 66 },
-  { date: "2026-04-03", desktop: 94, mobile: 69 },
-  { date: "2026-04-04", desktop: 97, mobile: 71 },
-  { date: "2026-04-05", desktop: 102, mobile: 76 },
-  { date: "2026-04-06", desktop: 108, mobile: 81 },
-  { date: "2026-04-07", desktop: 112, mobile: 85 },
-]
+type ChartPoint = {
+  date: string;
+  completed: number;
+  kitchen: number;
+};
 
 const chartConfig = {
   visitors: {
     label: "Flux",
   },
-  desktop: {
+  completed: {
     label: "Commandes encaissees",
     color: "var(--primary)",
   },
-  mobile: {
+  kitchen: {
     label: "Tickets cuisine",
     color: "var(--primary)",
   },
-} satisfies ChartConfig
+} satisfies ChartConfig;
 
-export function ChartAreaInteractive() {
-  const isMobile = useIsMobile()
-  const [timeRange, setTimeRange] = React.useState("90d")
+export function ChartAreaInteractive({
+  chartData,
+}: {
+  chartData: ChartPoint[];
+}) {
+  const isMobile = useIsMobile();
+  const [timeRange, setTimeRange] = React.useState("90d");
 
   React.useEffect(() => {
     if (isMobile) {
-      setTimeRange("7d")
+      setTimeRange("7d");
     }
-  }, [isMobile])
+  }, [isMobile]);
 
   const filteredData = chartData.filter((item) => {
-    const date = new Date(item.date)
-    const referenceDate = new Date("2026-04-07")
-    let daysToSubtract = 90
+    const date = new Date(item.date);
+    const referenceDate =
+      chartData.length > 0
+        ? new Date(chartData[chartData.length - 1].date)
+        : new Date();
+    let daysToSubtract = 90;
 
     if (timeRange === "30d") {
-      daysToSubtract = 30
+      daysToSubtract = 30;
     } else if (timeRange === "7d") {
-      daysToSubtract = 7
+      daysToSubtract = 7;
     }
 
-    const startDate = new Date(referenceDate)
-    startDate.setDate(startDate.getDate() - daysToSubtract)
+    const startDate = new Date(referenceDate);
+    startDate.setDate(startDate.getDate() - daysToSubtract);
 
-    return date >= startDate
-  })
+    return date >= startDate;
+  });
 
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>Commandes et impression cuisine</CardTitle>
+        <CardTitle className="line-clamp-1">
+          Commandes et impression cuisine
+        </CardTitle>
         <CardDescription>
           <span className="hidden @[540px]/card:block">
             Vision glissante des deux flux critiques du service
@@ -150,27 +136,27 @@ export function ChartAreaInteractive() {
         >
           <AreaChart data={filteredData}>
             <defs>
-              <linearGradient id="fillDesktop" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="fillCompleted" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="var(--color-desktop)"
+                  stopColor="var(--color-completed)"
                   stopOpacity={1}
                 />
                 <stop
                   offset="95%"
-                  stopColor="var(--color-desktop)"
+                  stopColor="var(--color-completed)"
                   stopOpacity={0.1}
                 />
               </linearGradient>
-              <linearGradient id="fillMobile" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id="fillKitchen" x1="0" y1="0" x2="0" y2="1">
                 <stop
                   offset="5%"
-                  stopColor="var(--color-mobile)"
+                  stopColor="var(--color-kitchen)"
                   stopOpacity={0.8}
                 />
                 <stop
                   offset="95%"
-                  stopColor="var(--color-mobile)"
+                  stopColor="var(--color-kitchen)"
                   stopOpacity={0.1}
                 />
               </linearGradient>
@@ -183,12 +169,12 @@ export function ChartAreaInteractive() {
               tickMargin={8}
               minTickGap={32}
               tickFormatter={(value) => {
-                const date = new Date(value)
+                const date = new Date(value);
 
                 return date.toLocaleDateString("fr-FR", {
                   month: "short",
                   day: "numeric",
-                })
+                });
               }}
             />
             <ChartTooltip
@@ -199,29 +185,29 @@ export function ChartAreaInteractive() {
                     return new Date(value).toLocaleDateString("fr-FR", {
                       month: "short",
                       day: "numeric",
-                    })
+                    });
                   }}
                   indicator="dot"
                 />
               }
             />
             <Area
-              dataKey="mobile"
+              dataKey="kitchen"
               type="natural"
-              fill="url(#fillMobile)"
-              stroke="var(--color-mobile)"
+              fill="url(#fillKitchen)"
+              stroke="var(--color-kitchen)"
               stackId="a"
             />
             <Area
-              dataKey="desktop"
+              dataKey="completed"
               type="natural"
-              fill="url(#fillDesktop)"
-              stroke="var(--color-desktop)"
+              fill="url(#fillCompleted)"
+              stroke="var(--color-completed)"
               stackId="a"
             />
           </AreaChart>
         </ChartContainer>
       </CardContent>
     </Card>
-  )
+  );
 }
