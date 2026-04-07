@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { NavLink, useLocation } from "react-router-dom"
 
 import {
   SidebarGroup,
@@ -20,17 +21,19 @@ export function NavSecondary({
     icon: React.ReactNode
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
+  const location = useLocation()
+
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
         <SidebarMenu>
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <a href={item.url}>
+              <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                <NavLink to={item.url}>
                   {item.icon}
                   <span>{item.title}</span>
-                </a>
+                </NavLink>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}

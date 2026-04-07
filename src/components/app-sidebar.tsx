@@ -1,4 +1,5 @@
 import * as React from "react"
+import { NavLink, useLocation } from "react-router-dom"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -35,62 +36,64 @@ const data = {
   navMain: [
     {
       title: "Pilotage",
-      url: "#",
+      url: "/",
       icon: <LayoutDashboardIcon />,
     },
     {
       title: "Prise de commande",
-      url: "#",
+      url: "/orders",
       icon: <ClipboardListIcon />,
     },
     {
       title: "Cuisine",
-      url: "#",
+      url: "/kitchen",
       icon: <CookingPotIcon />,
     },
     {
       title: "Caisse",
-      url: "#",
+      url: "/checkout",
       icon: <CreditCardIcon />,
     },
     {
       title: "Catalogue",
-      url: "#",
+      url: "/catalog",
       icon: <Package2Icon />,
     },
   ],
   navSecondary: [
     {
       title: "Parametres",
-      url: "#",
+      url: "/catalog",
       icon: <Settings2Icon />,
     },
     {
       title: "Support",
-      url: "#",
+      url: "/",
       icon: <LifeBuoyIcon />,
     },
   ],
   documents: [
     {
       name: "Impression cuisine",
-      url: "#",
+      url: "/kitchen",
       icon: <PrinterIcon />,
     },
     {
       name: "Rapport journalier",
-      url: "#",
+      url: "/",
       icon: <FileChartColumnIcon />,
     },
     {
       name: "Produits actifs",
-      url: "#",
+      url: "/catalog",
       icon: <Package2Icon />,
     },
   ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const location = useLocation()
+
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
@@ -99,11 +102,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
+              isActive={location.pathname === "/"}
             >
-              <a href="#">
+              <NavLink to="/">
                 <CommandIcon className="size-5!" />
                 <span className="text-base font-semibold">OR&apos;AURA POS</span>
-              </a>
+              </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

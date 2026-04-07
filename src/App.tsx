@@ -1,18 +1,19 @@
 import type { CSSProperties } from "react"
 
-import dashboardData from "@/app/dashboard/data.json"
+import { HashRouter, Navigate, Outlet, Route, Routes } from "react-router-dom"
+
 import { AppSidebar } from "@/components/app-sidebar"
-import { ChartAreaInteractive } from "@/components/chart-area-interactive"
-import { DataTable, schema } from "@/components/data-table"
-import { SectionCards } from "@/components/section-cards"
 import { SiteHeader } from "@/components/site-header"
 import { Toaster } from "@/components/ui/sonner"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { CatalogPage } from "@/pages/catalog-page"
+import { CheckoutPage } from "@/pages/checkout-page"
+import { DashboardPage } from "@/pages/dashboard-page"
+import { KitchenPage } from "@/pages/kitchen-page"
+import { OrdersPage } from "@/pages/orders-page"
 
-const orders = schema.array().parse(dashboardData)
-
-export default function App() {
+function AppShell() {
   return (
     <TooltipProvider>
       <SidebarProvider
@@ -25,18 +26,27 @@ export default function App() {
         <AppSidebar />
         <SidebarInset>
           <SiteHeader />
-          <div className="flex flex-1 flex-col gap-4 bg-gradient-to-b from-background via-background to-muted/20 py-4 md:gap-6 md:py-6">
-            <SectionCards />
-            <div className="px-4 lg:px-6">
-              <ChartAreaInteractive />
-            </div>
-            <div className="px-4 lg:px-6">
-              <DataTable data={orders} />
-            </div>
-          </div>
+          <Outlet />
         </SidebarInset>
       </SidebarProvider>
       <Toaster />
     </TooltipProvider>
+  )
+}
+
+export default function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/kitchen" element={<KitchenPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </HashRouter>
   )
 }
