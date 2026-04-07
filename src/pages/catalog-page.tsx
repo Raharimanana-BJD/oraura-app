@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import {
   FolderTreeIcon,
   Package2Icon,
@@ -11,7 +11,7 @@ import {
 import { toast } from "sonner"
 
 import { useCatalog } from "@/hooks/use-catalog"
-import type { CatalogCategory, CatalogProduct } from "@/lib/catalog-store"
+import type { CatalogCategory, CatalogProduct } from "@/lib/catalog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -79,6 +79,8 @@ export function CatalogPage() {
   const {
     categories,
     products,
+    isLoading,
+    error,
     createCategory,
     updateCategory,
     deleteCategory,
@@ -94,6 +96,7 @@ export function CatalogPage() {
     ...defaultProductDraft,
     categoryId: categories[0]?.id ?? "",
   })
+  const [isMutating, startMutation] = useTransition()
 
   const activeCategories = useMemo(
     () => categories.filter((category) => category.isActive),
@@ -115,15 +118,21 @@ export function CatalogPage() {
       return
     }
 
-    createCategory({
-      name: categoryDraft.name.trim(),
-      description: categoryDraft.description.trim(),
-      isActive: categoryDraft.isActive,
-    })
+    startMutation(async () => {
+      try {
+        await createCategory({
+          name: categoryDraft.name.trim(),
+          description: categoryDraft.description.trim(),
+          isActive: categoryDraft.isActive,
+        })
 
-    setCategoryDraft(defaultCategoryDraft)
-    setIsCreateCategoryOpen(false)
-    toast.success("Categorie ajoutee.")
+        setCategoryDraft(defaultCategoryDraft)
+        setIsCreateCategoryOpen(false)
+        toast.success("Categorie ajoutee.")
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Creation de categorie impossible.")
+      }
+    })
   }
 
   function handleCreateProduct() {
@@ -138,19 +147,25 @@ export function CatalogPage() {
       return
     }
 
-    createProduct({
-      name: productDraft.name.trim(),
-      categoryId: productDraft.categoryId,
-      price,
-      isActive: productDraft.isActive,
-    })
+    startMutation(async () => {
+      try {
+        await createProduct({
+          name: productDraft.name.trim(),
+          categoryId: productDraft.categoryId,
+          price,
+          isActive: productDraft.isActive,
+        })
 
-    setProductDraft({
-      ...defaultProductDraft,
-      categoryId: categories[0]?.id ?? "",
+        setProductDraft({
+          ...defaultProductDraft,
+          categoryId: categories[0]?.id ?? "",
+        })
+        setIsCreateProductOpen(false)
+        toast.success("Produit ajoute.")
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Creation de produit impossible.")
+      }
     })
-    setIsCreateProductOpen(false)
-    toast.success("Produit ajoute.")
   }
 
   return (
@@ -232,7 +247,7 @@ export function CatalogPage() {
                     />
                   </div>
                   <DialogFooter>
-                    <Button onClick={handleCreateCategory}>
+                    <Button onClick={handleCreateCategory} disabled={isMutating}>
                       <PlusIcon />
                       Ajouter la categorie
                     </Button>
@@ -323,7 +338,7 @@ export function CatalogPage() {
                     />
                   </div>
                   <DialogFooter>
-                    <Button onClick={handleCreateProduct}>
+                    <Button onClick={handleCreateProduct} disabled={isMutating}>
                       <PlusIcon />
                       Ajouter le produit
                     </Button>
@@ -344,18 +359,48 @@ export function CatalogPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
+            {isLoading ? (
+              <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
+                Chargement du catalogue...
+              </div>
+            ) : null}
+            {error ? (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
             {categories.map((category) => (
               <CategoryCard
                 key={category.id}
                 category={category}
                 productCount={productCountByCategory(products, category.id)}
                 onSave={(nextCategory) => {
-                  updateCategory(category.id, () => nextCategory)
-                  toast.success(`Categorie ${nextCategory.name} mise a jour.`)
+                  startMutation(async () => {
+                    try {
+                      await updateCategory(category.id, nextCategory)
+                      toast.success(`Categorie ${nextCategory.name} mise a jour.`)
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Mise a jour de categorie impossible."
+                      )
+                    }
+                  })
                 }}
                 onDelete={() => {
-                  deleteCategory(category.id)
-                  toast.success(`Categorie ${category.name} supprimee.`)
+                  startMutation(async () => {
+                    try {
+                      await deleteCategory(category.id)
+                      toast.success(`Categorie ${category.name} supprimee.`)
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Suppression de categorie impossible."
+                      )
+                    }
+                  })
                 }}
               />
             ))}
@@ -370,18 +415,48 @@ export function CatalogPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
+            {isLoading ? (
+              <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
+                Chargement des produits...
+              </div>
+            ) : null}
+            {error ? (
+              <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+                {error}
+              </div>
+            ) : null}
             {products.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 categories={categories}
                 onSave={(nextProduct) => {
-                  updateProduct(product.id, () => nextProduct)
-                  toast.success(`Produit ${nextProduct.name} mis a jour.`)
+                  startMutation(async () => {
+                    try {
+                      await updateProduct(product.id, nextProduct)
+                      toast.success(`Produit ${nextProduct.name} mis a jour.`)
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Mise a jour de produit impossible."
+                      )
+                    }
+                  })
                 }}
                 onDelete={() => {
-                  deleteProduct(product.id)
-                  toast.success(`Produit ${product.name} supprime.`)
+                  startMutation(async () => {
+                    try {
+                      await deleteProduct(product.id)
+                      toast.success(`Produit ${product.name} supprime.`)
+                    } catch (err) {
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : "Suppression de produit impossible."
+                      )
+                    }
+                  })
                 }}
               />
             ))}

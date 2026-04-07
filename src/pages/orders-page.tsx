@@ -15,7 +15,7 @@ import { useAppSettings } from "@/hooks/use-app-settings";
 import { useCatalog } from "@/hooks/use-catalog";
 import { useOrders } from "@/hooks/use-orders";
 import type { AppSettings } from "@/lib/app-settings";
-import type { CatalogProduct } from "@/lib/catalog-store";
+import type { CatalogProduct } from "@/lib/catalog";
 import type { OrderMode } from "@/lib/order-store";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

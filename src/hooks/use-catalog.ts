@@ -1,41 +1,99 @@
 import { useEffect, useMemo, useState } from "react"
+import { listen } from "@tauri-apps/api/event"
+import { invoke } from "@tauri-apps/api/core"
 
 import {
   CATALOG_UPDATED_EVENT,
-  createCategory,
-  createProduct,
-  deleteCategory,
-  deleteProduct,
-  readStoredCatalog,
-  updateCategory,
-  updateProduct,
-} from "@/lib/catalog-store"
+  type CatalogCategory,
+  type CatalogProduct,
+  type CatalogState,
+  type CreateCategoryInput,
+  type CreateProductInput,
+  type UpdateCategoryInput,
+  type UpdateProductInput,
+} from "@/lib/catalog"
+
+const emptyCatalog: CatalogState = {
+  categories: [],
+  products: [],
+}
 
 export function useCatalog() {
-  const [catalog, setCatalog] = useState(readStoredCatalog)
+  const [catalog, setCatalog] = useState<CatalogState>(emptyCatalog)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  async function refreshCatalog() {
+    try {
+      const nextCatalog = await invoke<CatalogState>("list_catalog")
+      setCatalog(nextCatalog)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Chargement du catalogue impossible.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const syncCatalog = () => {
-      setCatalog(readStoredCatalog())
-    }
+    void refreshCatalog()
 
-    window.addEventListener("storage", syncCatalog)
-    window.addEventListener(CATALOG_UPDATED_EVENT, syncCatalog)
+    let isMounted = true
+    let unlisten: (() => void) | undefined
+
+    void listen(CATALOG_UPDATED_EVENT, () => {
+      if (isMounted) {
+        void refreshCatalog()
+      }
+    }).then((dispose) => {
+      unlisten = dispose
+    })
 
     return () => {
-      window.removeEventListener("storage", syncCatalog)
-      window.removeEventListener(CATALOG_UPDATED_EVENT, syncCatalog)
+      isMounted = false
+      unlisten?.()
     }
   }, [])
 
   const actions = useMemo(
     () => ({
-      createCategory,
-      updateCategory,
-      deleteCategory,
-      createProduct,
-      updateProduct,
-      deleteProduct,
+      async refresh() {
+        await refreshCatalog()
+      },
+      async createCategory(input: CreateCategoryInput) {
+        const created = await invoke<CatalogCategory>("create_category", { input })
+        await refreshCatalog()
+        return created
+      },
+      async updateCategory(categoryId: string, input: UpdateCategoryInput) {
+        const updated = await invoke<CatalogCategory>("update_category", {
+          categoryId,
+          input,
+        })
+        await refreshCatalog()
+        return updated
+      },
+      async deleteCategory(categoryId: string) {
+        await invoke("delete_category", { categoryId })
+        await refreshCatalog()
+      },
+      async createProduct(input: CreateProductInput) {
+        const created = await invoke<CatalogProduct>("create_product", { input })
+        await refreshCatalog()
+        return created
+      },
+      async updateProduct(productId: string, input: UpdateProductInput) {
+        const updated = await invoke<CatalogProduct>("update_product", {
+          productId,
+          input,
+        })
+        await refreshCatalog()
+        return updated
+      },
+      async deleteProduct(productId: string) {
+        await invoke("delete_product", { productId })
+        await refreshCatalog()
+      },
     }),
     []
   )
@@ -43,5 +101,7 @@ export function useCatalog() {
   return {
     ...catalog,
     ...actions,
+    isLoading,
+    error,
   }
 }

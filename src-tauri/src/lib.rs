@@ -1,3 +1,6 @@
+mod catalog;
+mod db;
+
 use std::{
     io::Write,
     net::{SocketAddr, TcpStream},
@@ -85,9 +88,24 @@ fn print_to_kitchen(printer_ip: &str, printer_port: Option<u16>, content: &str) 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let database_state = db::DatabaseState::new();
+    tauri::async_runtime::block_on(db::warm_up_database(&database_state));
+
     tauri::Builder::default()
+        .manage(database_state)
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![print_to_kitchen])
+        .invoke_handler(tauri::generate_handler![
+            print_to_kitchen,
+            db::initialize_database,
+            db::database_status,
+            catalog::list_catalog,
+            catalog::create_category,
+            catalog::update_category,
+            catalog::delete_category,
+            catalog::create_product,
+            catalog::update_product,
+            catalog::delete_product
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
