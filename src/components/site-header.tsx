@@ -1,10 +1,10 @@
-import { BellIcon, PrinterIcon } from "lucide-react"
-import { Link, useLocation } from "react-router-dom"
+import { BellIcon, PrinterIcon } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 const routeMeta: Record<string, { title: string; description: string }> = {
   "/": {
@@ -17,7 +17,8 @@ const routeMeta: Record<string, { title: string; description: string }> = {
   },
   "/kitchen": {
     title: "Cuisine",
-    description: "Suivi des tickets en preparation et rythme de sortie cuisine.",
+    description:
+      "Suivi des tickets en preparation et rythme de sortie cuisine.",
   },
   "/checkout": {
     title: "Caisse",
@@ -27,11 +28,16 @@ const routeMeta: Record<string, { title: string; description: string }> = {
     title: "Catalogue",
     description: "Gestion des produits, prix, categories et disponibilites.",
   },
-}
+  "/settings": {
+    title: "Parametres",
+    description:
+      "Configuration imprimante, etablissement et options d'exploitation.",
+  },
+};
 
 export function SiteHeader() {
-  const location = useLocation()
-  const meta = routeMeta[location.pathname] ?? routeMeta["/"]
+  const location = useLocation();
+  const meta = routeMeta[location.pathname] ?? routeMeta["/"];
 
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
@@ -39,12 +45,14 @@ export function SiteHeader() {
         <SidebarTrigger className="-ml-1" />
         <Separator
           orientation="vertical"
-          className="mx-2 data-[orientation=vertical]:h-4"
+          className="mx-2 data-[orientation=vertical]:h-auto"
         />
         <div className="flex flex-1 items-center justify-between gap-3">
           <div>
-            <h1 className="text-base font-medium">{meta.title}</h1>
-            <p className="text-sm text-muted-foreground">{meta.description}</p>
+            <h1 className="text-base font-medium line-clamp-1">{meta.title}</h1>
+            <p className="text-sm text-muted-foreground line-clamp-1">
+              {meta.description}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="hidden sm:inline-flex">
@@ -53,18 +61,18 @@ export function SiteHeader() {
             <Button asChild variant="outline" size="sm">
               <Link to="/kitchen">
                 <PrinterIcon />
-                Tester imprimante
+                <span className="max-lg:hidden block">Tester imprimante</span>
               </Link>
             </Button>
             <Button asChild size="sm">
               <Link to="/orders">
                 <BellIcon />
-                Nouvelle commande
+                <span className="max-lg:hidden block">Nouvelle commande</span>
               </Link>
             </Button>
           </div>
         </div>
       </div>
     </header>
-  )
+  );
 }

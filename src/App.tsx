@@ -12,6 +12,7 @@ import { CheckoutPage } from "@/pages/checkout-page"
 import { DashboardPage } from "@/pages/dashboard-page"
 import { KitchenPage } from "@/pages/kitchen-page"
 import { OrdersPage } from "@/pages/orders-page"
+import { SettingsPage } from "@/pages/settings-page"
 
 function AppShell() {
   return (
@@ -44,6 +45,7 @@ export default function App() {
           <Route path="/kitchen" element={<KitchenPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/catalog" element={<CatalogPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

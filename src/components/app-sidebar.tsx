@@ -63,7 +63,7 @@ const data = {
   navSecondary: [
     {
       title: "Parametres",
-      url: "/catalog",
+      url: "/settings",
       icon: <Settings2Icon />,
     },
     {
