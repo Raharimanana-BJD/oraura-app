@@ -20,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageLoadingSkeleton } from "@/components/page-loading-skeleton";
 import {
   Select,
   SelectContent,
@@ -88,13 +89,7 @@ export function CheckoutPage() {
   );
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
-        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
-          Chargement des commandes caisse...
-        </div>
-      </div>
-    );
+    return <PageLoadingSkeleton />;
   }
 
   if (error) {

@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use tauri::State;
 
 use crate::db::DatabaseState;
@@ -193,16 +193,16 @@ impl AppSettings {
     }
 }
 
-async fn upsert_settings(pool: &PgPool, settings: &AppSettings) -> Result<(), String> {
+async fn upsert_settings(pool: &SqlitePool, settings: &AppSettings) -> Result<(), String> {
     let payload = serde_json::to_value(settings)
         .map_err(|error| format!("Serialisation des parametres impossible: {error}"))?;
 
     sqlx::query(
         "INSERT INTO app_settings (id, payload)
-         VALUES ($1, $2)
-         ON CONFLICT (id) DO UPDATE
-         SET payload = EXCLUDED.payload,
-             updated_at = NOW()",
+         VALUES (?, ?)
+         ON CONFLICT(id) DO UPDATE
+         SET payload = excluded.payload,
+             updated_at = CURRENT_TIMESTAMP",
     )
     .bind(APP_SETTINGS_ROW_ID)
     .bind(payload)
@@ -213,7 +213,7 @@ async fn upsert_settings(pool: &PgPool, settings: &AppSettings) -> Result<(), St
     Ok(())
 }
 
-async fn load_settings(pool: &PgPool) -> Result<AppSettings, String> {
+async fn load_settings(pool: &SqlitePool) -> Result<AppSettings, String> {
     let payload = sqlx::query_scalar::<_, serde_json::Value>(
         "SELECT payload
          FROM app_settings

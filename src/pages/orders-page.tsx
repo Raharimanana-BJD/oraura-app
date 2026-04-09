@@ -17,6 +17,7 @@ import { useOrders } from "@/hooks/use-orders";
 import type { AppSettings } from "@/lib/app-settings";
 import type { CatalogProduct } from "@/lib/catalog";
 import type { LocalOrder } from "@/lib/orders";
+import { PageLoadingSkeleton } from "@/components/page-loading-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -138,13 +139,7 @@ export function OrdersPage() {
   );
 
   if (isCatalogLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
-        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
-          Chargement du catalogue produits...
-        </div>
-      </div>
-    );
+    return <PageLoadingSkeleton />;
   }
 
   if (catalogError) {

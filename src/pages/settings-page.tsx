@@ -23,6 +23,7 @@ import {
   resetAppSettings,
   saveAppSettings,
 } from "@/lib/app-settings"
+import { PageLoadingSkeleton } from "@/components/page-loading-skeleton"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -233,14 +234,7 @@ export function SettingsPage() {
   }
 
   if (!isHydrated) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2Icon className="size-4 animate-spin" />
-          Chargement des parametres...
-        </div>
-      </div>
-    )
+    return <PageLoadingSkeleton />
   }
 
   return (

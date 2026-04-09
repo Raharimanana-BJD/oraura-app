@@ -1,44 +1,22 @@
-p db:seed
+PS C:\Users\USER\Desktop\oraura-app> p tauri dev
+Running BeforeDevCommand (`pnpm dev`)
 
-> oraura-app@0.1.0 db:seed /home/braharim/projet/oraura-app
-> prisma db seed
+> oraura-app@0.1.0 dev C:\Users\USER\Desktop\oraura-app
+> vite
 
-Loaded Prisma config from prisma.config.ts.
+VITE v7.3.2 ready in 2380 ms
 
-Running seed command `tsx prisma/seed.ts` ...
-/home/braharim/projet/oraura-app/node*modules/.pnpm/@prisma+client@7.6.0_prisma@7.6.0*@types+react-dom@19.2.3_@types+react@19.2.14__@types+\_c6cce8f0688191bea189f12690ac782d/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:320
-throw new PrismaClientInitializationError(
-^
+➜ Local: http://localhost:1420/
+Running DevCommand (`cargo  run --no-default-features --color always --`)
+Info Watching C:\Users\USER\Desktop\oraura-app\src-tauri for changes...
+Compiling oraura-app v0.1.0 (C:\Users\USER\Desktop\oraura-app\src-tauri)
+Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 50s
+Running `target\debug\oraura-app.exe`
 
-PrismaClientInitializationError: `PrismaClient` needs to be constructed with a non-empty, valid `PrismaClientOptions`:
+thread 'main' (13568) panicked at src\lib.rs:105:14:
+Impossible d'initialiser la base de donnees SQLite.: "Execution des migrations SQL impossible: while executing migration 2: error returned from database: (code: 1) near \"EXISTS\": syntax error"
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+error: process didn't exit successfully: `target\debug\oraura-app.exe` (exit code: 101)
+ ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "tauri dev" not found
 
-```
-new PrismaClient({
-  ...
-})
-```
-
-or
-
-```
-constructor() {
-  super({ ... });
-}
-```
-
-    at new t (/home/braharim/projet/oraura-app/node_modules/.pnpm/@prisma+client@7.6.0_prisma@7.6.0_@types+react-dom@19.2.3_@types+react@19.2.14__@types+_c6cce8f0688191bea189f12690ac782d/node_modules/@prisma/client/src/runtime/getPrismaClient.ts:320:15)
-    at <anonymous> (/home/braharim/projet/oraura-app/prisma/seed.ts:3:16)
-    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)
-    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
-    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
-
-clientVersion: '7.6.0',
-errorCode: undefined,
-retryable: undefined
-}
-
-Node.js v24.13.1
-
-An error occurred while running the seed command:
-Error: Command failed with exit code 1: tsx prisma/seed.ts
- ELIFECYCLE  Command failed with exit code 1.
+Did you mean "pnpm tauri"?

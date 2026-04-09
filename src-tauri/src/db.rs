@@ -1,13 +1,14 @@
-use std::{env, sync::Mutex, time::Duration};
+use std::{env, fs, path::PathBuf, sync::Mutex, time::Duration};
 
 use serde::Serialize;
-use sqlx::{postgres::PgPoolOptions, PgPool};
+use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, SqlitePool};
 
+const DATABASE_FILE_NAME: &str = "oraura.db";
 const DATABASE_CONNECT_TIMEOUT_SECS: u64 = 5;
 const DATABASE_MAX_CONNECTIONS: u32 = 5;
 
 pub struct DatabaseState {
-    pool: Mutex<Option<PgPool>>,
+    pool: Mutex<Option<SqlitePool>>,
     last_error: Mutex<Option<String>>,
 }
 
@@ -25,14 +26,14 @@ impl DatabaseState {
         }
     }
 
-    pub fn current_pool(&self) -> Option<PgPool> {
+    pub fn current_pool(&self) -> Option<SqlitePool> {
         self.pool
             .lock()
             .expect("database state lock poisoned")
             .clone()
     }
 
-    fn set_pool(&self, pool: PgPool) {
+    pub fn set_pool(&self, pool: SqlitePool) {
         *self.pool.lock().expect("database state lock poisoned") = Some(pool);
         *self
             .last_error
@@ -54,7 +55,7 @@ impl DatabaseState {
             .clone()
     }
 
-    pub async fn ensure_pool(&self) -> Result<PgPool, String> {
+    pub async fn ensure_pool(&self) -> Result<SqlitePool, String> {
         if let Some(pool) = self.current_pool() {
             ping_pool(&pool).await?;
             return Ok(pool);
@@ -67,19 +68,47 @@ impl DatabaseState {
     }
 }
 
-async fn connect_pool() -> Result<PgPool, String> {
-    dotenvy::dotenv().ok();
+fn database_file_path() -> Result<PathBuf, String> {
+    if let Ok(database_file) = env::var("DATABASE_FILE") {
+        return Ok(PathBuf::from(database_file));
+    }
 
-    let database_url = env::var("DATABASE_URL").map_err(|_| {
-        "DATABASE_URL est absente. Configure le fichier .env avant de continuer.".to_string()
+    let mut data_dir = dirs::data_local_dir().ok_or_else(|| {
+        "Impossible de determiner le dossier local de l'application.".to_string()
     })?;
 
-    let pool = PgPoolOptions::new()
+    data_dir.push("oraura-app");
+    fs::create_dir_all(&data_dir)
+        .map_err(|error| format!("Impossible de creer le dossier de la base: {error}"))?;
+    data_dir.push(DATABASE_FILE_NAME);
+    Ok(data_dir)
+}
+
+pub async fn connect_pool() -> Result<SqlitePool, String> {
+    dotenvy::dotenv().ok();
+
+    let database_path = database_file_path()?;
+
+    let connect_options = SqliteConnectOptions::new()
+        .filename(&database_path)
+        .create_if_missing(true);
+
+    let pool = SqlitePoolOptions::new()
         .max_connections(DATABASE_MAX_CONNECTIONS)
         .acquire_timeout(Duration::from_secs(DATABASE_CONNECT_TIMEOUT_SECS))
-        .connect(&database_url)
+        .connect_with(connect_options)
         .await
-        .map_err(|error| format!("Connexion PostgreSQL impossible: {error}"))?;
+        .map_err(|error| format!("Connexion SQLite impossible: {error}"))?;
+
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
+        .await
+        .map_err(|error| format!("Impossible d'activer les foreign keys: {error}"))?;
+
+    sqlx::query("PRAGMA journal_mode = WAL")
+        .execute(&pool)
+        .await
+        .map_err(|error| format!("Impossible d'activer WAL: {error}"))?;
 
     sqlx::migrate!("./migrations")
         .run(&pool)
@@ -89,12 +118,12 @@ async fn connect_pool() -> Result<PgPool, String> {
     Ok(pool)
 }
 
-async fn ping_pool(pool: &PgPool) -> Result<(), String> {
+async fn ping_pool(pool: &SqlitePool) -> Result<(), String> {
     sqlx::query_scalar::<_, i32>("SELECT 1")
         .fetch_one(pool)
         .await
         .map(|_| ())
-        .map_err(|error| format!("Base PostgreSQL indisponible: {error}"))
+        .map_err(|error| format!("Base SQLite indisponible: {error}"))
 }
 
 #[tauri::command]
@@ -107,7 +136,7 @@ pub async fn initialize_database(
 
     Ok(DatabaseStatus {
         connected: true,
-        message: "Connexion PostgreSQL active et migrations appliquees.".to_string(),
+        message: "Connexion SQLite active et migrations appliquees.".to_string(),
     })
 }
 
@@ -120,7 +149,7 @@ pub async fn database_status(
 
         return Ok(DatabaseStatus {
             connected: true,
-            message: "Connexion PostgreSQL active.".to_string(),
+            message: "Connexion SQLite active.".to_string(),
         });
     }
 

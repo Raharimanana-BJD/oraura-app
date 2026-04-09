@@ -1,3 +1,4 @@
+mod api;
 mod app_settings;
 mod catalog;
 mod db;
@@ -9,6 +10,7 @@ use std::{
     net::{SocketAddr, TcpStream},
     time::Duration,
 };
+use tokio::sync::broadcast;
 
 const DEFAULT_PRINTER_PORT: u16 = 9100;
 const CONNECT_TIMEOUT_MS: u64 = 3_000;
@@ -97,6 +99,29 @@ fn print_to_kitchen(
 pub fn run() {
     let database_state = db::DatabaseState::new();
     tauri::async_runtime::block_on(db::warm_up_database(&database_state));
+
+    let pool = database_state.current_pool().unwrap_or_else(|| {
+        tauri::async_runtime::block_on(db::connect_pool())
+            .expect("Impossible d'initialiser la base de donnees SQLite.")
+    });
+
+    let (broadcast_tx, _broadcast_rx) = broadcast::channel::<String>(100);
+    let api_state = api::AppState {
+        pool: pool.clone(),
+        broadcaster: broadcast_tx.clone(),
+    };
+
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = api::run_server(api_state).await {
+            eprintln!("Erreur serveur tablette: {error}");
+        }
+    });
+
+    tauri::async_runtime::spawn(async move {
+        if let Err(error) = api::announce_mdns().await {
+            eprintln!("Erreur annonce mDNS: {error}");
+        }
+    });
 
     tauri::Builder::default()
         .manage(database_state)

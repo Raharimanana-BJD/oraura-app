@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::SqlitePool;
 use tauri::{AppHandle, Emitter, State};
 
 use crate::{db::DatabaseState, ids::generate_id};
@@ -94,7 +94,7 @@ fn round_currency(value: f64) -> f64 {
 }
 
 async fn prepare_order_lines(
-    pool: &PgPool,
+    pool: &SqlitePool,
     lines: Vec<CreateOrderLineInput>,
 ) -> Result<(Vec<PreparedOrderLine>, f64, i32), String> {
     let mut prepared_lines = Vec::with_capacity(lines.len());
@@ -111,11 +111,11 @@ async fn prepare_order_lines(
         let snapshot = sqlx::query_as::<_, (String, String, f64, bool)>(
             "SELECT products.name,
                     categories.name,
-                    products.price::double precision,
+                    CAST(products.price AS REAL),
                     products.is_active
              FROM products
              INNER JOIN categories ON categories.id = products.category_id
-             WHERE products.id = $1",
+             WHERE products.id = ?",
         )
         .bind(&product_id)
         .fetch_optional(pool)
@@ -150,11 +150,11 @@ async fn emit_orders_updated(app: &AppHandle) -> Result<(), String> {
         .map_err(|error| format!("Emission evenement commandes impossible: {error}"))
 }
 
-async fn fetch_lines_by_order_id(pool: &PgPool, order_id: &str) -> Result<Vec<OrderLine>, String> {
+async fn fetch_lines_by_order_id(pool: &SqlitePool, order_id: &str) -> Result<Vec<OrderLine>, String> {
     let rows = sqlx::query_as::<_, (String, String, String, String, f64, i32)>(
-        "SELECT id, product_id, name, category, unit_price::double precision, quantity
+        "SELECT id, product_id, name, category, CAST(unit_price AS REAL), quantity
          FROM order_items
-         WHERE order_id = $1
+         WHERE order_id = ?
          ORDER BY created_at ASC, id ASC",
     )
     .bind(order_id)
@@ -177,7 +177,7 @@ async fn fetch_lines_by_order_id(pool: &PgPool, order_id: &str) -> Result<Vec<Or
         .collect())
 }
 
-async fn fetch_order_by_id(pool: &PgPool, order_id: &str) -> Result<LocalOrder, String> {
+async fn fetch_order_by_id(pool: &SqlitePool, order_id: &str) -> Result<LocalOrder, String> {
     let row = sqlx::query_as::<
         _,
         (
@@ -195,11 +195,11 @@ async fn fetch_order_by_id(pool: &PgPool, order_id: &str) -> Result<LocalOrder, 
             String,
         ),
     >(
-        "SELECT id, order_number, customer_name, order_mode::text, notes,
-                total_amount::double precision, total_items, kitchen_status::text,
-                payment_status::text, payment_method::text, created_at::text, updated_at::text
+        "SELECT id, order_number, customer_name, order_mode, notes,
+                CAST(total_amount AS REAL), total_items, kitchen_status,
+                payment_status, payment_method, created_at, updated_at
          FROM orders
-         WHERE id = $1",
+         WHERE id = ?",
     )
     .bind(order_id)
     .fetch_optional(pool)
@@ -246,9 +246,9 @@ pub async fn list_orders(state: State<'_, DatabaseState>) -> Result<Vec<LocalOrd
             String,
         ),
     >(
-        "SELECT id, order_number, customer_name, order_mode::text, notes,
-                total_amount::double precision, total_items, kitchen_status::text,
-                payment_status::text, payment_method::text, created_at::text, updated_at::text
+        "SELECT id, order_number, customer_name, order_mode, notes,
+                CAST(total_amount AS REAL), total_items, kitchen_status,
+                payment_status, payment_method, created_at, updated_at
          FROM orders
          ORDER BY created_at DESC, order_number DESC",
     )
@@ -279,14 +279,10 @@ pub async fn list_orders(state: State<'_, DatabaseState>) -> Result<Vec<LocalOrd
     Ok(orders)
 }
 
-#[tauri::command]
-pub async fn create_order(
-    app: AppHandle,
-    state: State<'_, DatabaseState>,
+pub async fn create_order_http(
+    pool: &SqlitePool,
     input: CreateOrderInput,
 ) -> Result<LocalOrder, String> {
-    let pool = state.ensure_pool().await?;
-
     if input.lines.is_empty() {
         return Err("La commande doit contenir au moins une ligne.".to_string());
     }
@@ -296,7 +292,7 @@ pub async fn create_order(
     let order_mode = validate_order_mode(&input.order_mode)?;
     let notes = input.notes.trim().to_string();
     let (prepared_lines, total_amount, total_items) =
-        prepare_order_lines(&pool, input.lines).await?;
+        prepare_order_lines(pool, input.lines).await?;
 
     let mut transaction = pool
         .begin()
@@ -310,8 +306,8 @@ pub async fn create_order(
             id, order_number, customer_name, order_mode, notes,
             total_amount, total_items, kitchen_status, payment_status, payment_method
          ) VALUES (
-            $1, $2, $3, CAST($4 AS order_mode), $5,
-            $6, $7, 'PREPARING', 'PENDING', NULL
+            ?, ?, ?, ?, ?,
+            ?, ?, 'PREPARING', 'PENDING', NULL
          )",
     )
     .bind(&order_id)
@@ -329,7 +325,7 @@ pub async fn create_order(
         sqlx::query(
             "INSERT INTO order_items (
                 id, order_id, product_id, name, category, quantity, unit_price
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+             ) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(generate_id("line"))
         .bind(&order_id)
@@ -348,7 +344,17 @@ pub async fn create_order(
         .await
         .map_err(|error| format!("Validation transaction impossible: {error}"))?;
 
-    let created = fetch_order_by_id(&pool, &order_id).await?;
+    fetch_order_by_id(pool, &order_id).await
+}
+
+#[tauri::command]
+pub async fn create_order(
+    app: AppHandle,
+    state: State<'_, DatabaseState>,
+    input: CreateOrderInput,
+) -> Result<LocalOrder, String> {
+    let pool = state.ensure_pool().await?;
+    let created = create_order_http(&pool, input).await?;
     emit_orders_updated(&app).await?;
     Ok(created)
 }
@@ -362,8 +368,8 @@ pub async fn mark_order_ready(
     let pool = state.ensure_pool().await?;
     let updated = sqlx::query(
         "UPDATE orders
-         SET kitchen_status = 'READY', updated_at = NOW()
-         WHERE id = $1 AND payment_status = 'PENDING'",
+         SET kitchen_status = 'READY', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND payment_status = 'PENDING'",
     )
     .bind(&order_id)
     .execute(&pool)
@@ -392,12 +398,12 @@ pub async fn complete_order_payment(
     let updated = sqlx::query(
         "UPDATE orders
          SET payment_status = 'COMPLETED',
-             payment_method = CAST($2 AS payment_method),
-             updated_at = NOW()
-         WHERE id = $1 AND payment_status = 'PENDING'",
+             payment_method = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND payment_status = 'PENDING'",
     )
-    .bind(&order_id)
     .bind(payment_method)
+    .bind(&order_id)
     .execute(&pool)
     .await
     .map_err(|error| format!("Encaissement de commande impossible: {error}"))?;

@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { useOrders } from "@/hooks/use-orders"
 import { useAppSettings } from "@/hooks/use-app-settings"
+import { PageLoadingSkeleton } from "@/components/page-loading-skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,13 +30,7 @@ export function KitchenPage() {
   )
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
-        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
-          Chargement des tickets cuisine...
-        </div>
-      </div>
-    )
+    return <PageLoadingSkeleton />
   }
 
   if (error) {

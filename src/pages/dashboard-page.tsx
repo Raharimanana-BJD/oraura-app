@@ -5,6 +5,7 @@ import { useCatalog } from "@/hooks/use-catalog";
 import { useOrders } from "@/hooks/use-orders";
 import { ChartAreaInteractive } from "@/components/chart-area-interactive";
 import { DataTable } from "@/components/data-table";
+import { PageLoadingSkeleton } from "@/components/page-loading-skeleton";
 import { SectionCards } from "@/components/section-cards";
 
 export function DashboardPage() {
@@ -101,13 +102,7 @@ export function DashboardPage() {
   const error = catalogError ?? ordersError
 
   if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:px-6">
-        <div className="rounded-2xl border border-dashed px-6 py-8 text-sm text-muted-foreground">
-          Chargement du pilotage en temps reel...
-        </div>
-      </div>
-    )
+    return <PageLoadingSkeleton />
   }
 
   if (error) {
